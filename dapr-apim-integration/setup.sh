@@ -13,6 +13,11 @@
 # If you just run the command using ./setup.sh the resources in Azure will be
 # created but the environment variables will not be set.
 
+### VARIABLES ####
+export APIM_SERVICE_NAME="apiserviceu6a6xbzfqp3ks"
+export AZ_SUBSCRIPTION_ID="b05c9d81-b1b3-44f3-988e-1cc935f55075" ##TODO: Change hardcoded value
+export AZ_RESOURCE_GROUP="apim_dapr"
+
 function getOutput {
    echo $(az deployment sub show --name $rgName --query "properties.outputs.$1.value" --output tsv)
 }
@@ -22,12 +27,79 @@ function getOutput {
 rgName=$1
 rgName=${rgName:-apim_dapr}
 
-# The location to store the meta data for the deployment.
+# # The location to store the meta data for the deployment.
 location=$2
 location=${location:-francecentral}
 
-# Deploy the infrastructure
-az deployment sub create --name $rgName --location $location --template-file iac/main.bicep --parameters rgName=$rgName --output none
+
+##############################################
+################ AZURE APIM ##################
+##############################################
+
+# # Deploy the infrastructure (APIM)
+az deployment sub create --name $rgName --location $location --template-file iac/main.bicep --parameters rgName=$rgName activate_aks='false' --output none
+
+### I.1 API Configuration ###
+az apim api import --path / \
+                   --api-id dapr \
+                   --subscription $AZ_SUBSCRIPTION_ID \
+                   --resource-group $AZ_RESOURCE_GROUP \
+                   --service-name $APIM_SERVICE_NAME \
+                   --display-name "Demo Dapr Service API" \
+                   --protocols http https \
+                   --subscription-required true \
+                   --specification-path apim/api.yaml \
+                   --specification-format OpenApi
+
+
+### I.2 Get Azure Api Token ###
+export AZ_API_TOKEN=$(az account get-access-token --resource=https://management.azure.com --query accessToken --output tsv)
+
+### I.3 Apply Global Policy ###
+curl -i -X PUT \
+     -d @apim/policy-all.json \
+     -H "Content-Type: application/json" \
+     -H "If-Match: *" \
+     -H "Authorization: Bearer ${AZ_API_TOKEN}" \
+     "https://management.azure.com/subscriptions/${AZ_SUBSCRIPTION_ID}/resourceGroups/${AZ_RESOURCE_GROUP}/providers/Microsoft.ApiManagement/service/${APIM_SERVICE_NAME}/apis/dapr/policies/policy?api-version=2019-12-01"
+
+### I.4 Message Topic Policy ###
+curl -i -X PUT \
+     -d @apim/policy-message.json \
+     -H "Content-Type: application/json" \
+     -H "If-Match: *" \
+     -H "Authorization: Bearer ${AZ_API_TOKEN}" \
+     "https://management.azure.com/subscriptions/${AZ_SUBSCRIPTION_ID}/resourceGroups/${AZ_RESOURCE_GROUP}/providers/Microsoft.ApiManagement/service/${APIM_SERVICE_NAME}/apis/dapr/operations/message/policies/policy?api-version=2019-12-01"
+
+### I.5 Save Binding Policy
+curl -i -X PUT \
+     -d @apim/policy-save.json \
+     -H "Content-Type: application/json" \
+     -H "If-Match: *" \
+     -H "Authorization: Bearer ${AZ_API_TOKEN}" \
+     "https://management.azure.com/subscriptions/${AZ_SUBSCRIPTION_ID}/resourceGroups/${AZ_RESOURCE_GROUP}/providers/Microsoft.ApiManagement/service/${APIM_SERVICE_NAME}/apis/dapr/operations/save/policies/policy?api-version=2019-12-01"
+
+### I.6 Gateway Configuration
+curl -i -X PUT -d '{"properties": {"description": "Dapr Gateway","locationData": {"name": "Virtual"}}}' \
+     -H "Content-Type: application/json" \
+     -H "If-Match: *" \
+     -H "Authorization: Bearer ${AZ_API_TOKEN}" \
+     "https://management.azure.com/subscriptions/${AZ_SUBSCRIPTION_ID}/resourceGroups/${AZ_RESOURCE_GROUP}/providers/Microsoft.ApiManagement/service/${APIM_SERVICE_NAME}/gateways/demo-apim-gateway?api-version=2019-12-01"
+
+### I.7 Map the gateway to the created API ###
+curl -i -X PUT -d '{ "properties": { "provisioningState": "created" } }' \
+     -H "Content-Type: application/json" \
+     -H "If-Match: *" \
+     -H "Authorization: Bearer ${AZ_API_TOKEN}" \
+     "https://management.azure.com/subscriptions/${AZ_SUBSCRIPTION_ID}/resourceGroups/${AZ_RESOURCE_GROUP}/providers/Microsoft.ApiManagement/service/${APIM_SERVICE_NAME}/gateways/demo-apim-gateway/apis/dapr?api-version=2019-12-01"
+
+
+
+##############################################
+################ AZURE AKS ###################
+##############################################
+# # Deploy the infrastructure (AKS)
+#az deployment sub create --name $rgName --location $location --template-file iac/main.bicep --parameters rgName=$rgName activate_apim='false' --output none
 
 # Get all the outputs
 # cognitiveServiceKey=$(getOutput 'cognitiveServiceKey')
