@@ -46,7 +46,7 @@ resource aksClusterName_resource 'Microsoft.ContainerService/managedClusters@202
         count: agentCount
         vmSize: agentVMSize
         osType: osType
-        storageProfile: 'ManagedDisks'
+        //storageProfile: 'ManagedDisks'
         type: 'VirtualMachineScaleSets'
         mode: 'System'
       }

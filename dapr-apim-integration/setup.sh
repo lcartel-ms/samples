@@ -8,13 +8,9 @@
 # Azure CLI (log in)
 
 # This script is setting environment variables needed by the processor.
-# There for you must run this script using the source command.
-# source setup.sh
-# If you just run the command using ./setup.sh the resources in Azure will be
-# created but the environment variables will not be set.
 
 ### VARIABLES ####
-export APIM_SERVICE_NAME="apiserviceu6a6xbzfqp3ks"
+export APIM_SERVICE_NAME="apim-service"
 export AZ_SUBSCRIPTION_ID="b05c9d81-b1b3-44f3-988e-1cc935f55075" ##TODO: Change hardcoded value
 export AZ_RESOURCE_GROUP="apim_dapr"
 
@@ -98,9 +94,36 @@ curl -i -X PUT -d '{ "properties": { "provisioningState": "created" } }' \
 ##############################################
 ################ AZURE AKS ###################
 ##############################################
-# # Deploy the infrastructure (AKS)
-#az deployment sub create --name $rgName --location $location --template-file iac/main.bicep --parameters rgName=$rgName activate_apim='false' --output none
+# # II.1 Deploy the infrastructure (AKS)
+az deployment sub create --name $rgName --location $location --template-file iac/main.bicep --parameters rgName=$rgName activate_apim='false' --output none
 
+# # II.2 Get Credential to connect to AKS cluster 
+az aks get-credentials --resource-group $AZ_RESOURCE_GROUP --name $(getOutput 'cluster_name')
+
+# # II.3 Add helm repo 
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+
+# # II.4 Install redis
+helm install redis bitnami/redis  
+kubectl rollout status statefulset.apps/redis-master
+kubectl rollout status statefulset.apps/redis-slave
+
+# # II.5 Install pub/sub
+kubectl apply -f k8s/pubsub.yaml
+kubectl apply -f k8s/binding.yaml
+
+# # II.6 Deploy your Application as Dapr Service
+kubectl apply -f k8s/echo-service.yaml
+kubectl apply -f k8s/event-subscriber.yaml
+kubectl get pods -l demo=dapr-apim -w
+
+########################################################
+################ SELF HOSTED APIM GW ###################
+########################################################
+
+
+# # 
 # Get all the outputs
 # cognitiveServiceKey=$(getOutput 'cognitiveServiceKey')
 # cognitiveServiceEndpoint=$(getOutput 'cognitiveServiceEndpoint')

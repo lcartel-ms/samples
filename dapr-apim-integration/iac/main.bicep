@@ -2,10 +2,12 @@ targetScope = 'subscription'
 
 param rgName string = 'apim-rg'
 param location string = 'francecentral'
+param aks_cluster_name string = 'myk8scluster'
 
 //// Activate-Deactivate Component ///
 param activate_apim bool = true
 param activate_aks bool = true
+
 
 
 resource rg 'Microsoft.Resources/resourceGroups@2020-06-01' = {
@@ -26,9 +28,10 @@ module aks_cluster 'aks-quickstart.bicep' = if (activate_aks) {
   name: 'aks_cluster'
   scope: resourceGroup(rgName)
   params: {
-    aksClusterName: 'myakscluster'
+    aksClusterName: aks_cluster_name
     agentCount: 1 //1 agen for dev
-    dnsPrefix: ''
+    dnsPrefix: '${aks_cluster_name}-dns'
   }
 }
 
+output cluster_name string = aks_cluster_name
