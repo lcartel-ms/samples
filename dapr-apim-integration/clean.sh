@@ -10,4 +10,3 @@
 export AZ_RESOURCE_GROUP="apim_dapr"
 
 az group delete --name $AZ_RESOURCE_GROUP
-az group delete --name 'MC_apim_dapr_myk8scluster_francecentral' ##TODO : Change hardcoded version
