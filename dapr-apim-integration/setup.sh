@@ -10,22 +10,23 @@
 # This script is setting environment variables needed by the processor.
 
 ### VARIABLES ####
-export APIM_SERVICE_NAME="apim-service"
+export APIM_SERVICE_NAME="apim-service-3"
 export AZ_SUBSCRIPTION_ID="b05c9d81-b1b3-44f3-988e-1cc935f55075" ##TODO: Change hardcoded value
-export AZ_RESOURCE_GROUP="apim-rg"
+export AZ_RESOURCE_GROUP="apim-rg-3"
+export AZ_LOCATION="francecentral"
 
 function getOutput {
-   echo $(az deployment sub show --name $rgName --query "properties.outputs.$1.value" --output tsv)
+   echo $(az deployment sub show --name $AZ_RESOURCE_GROUP --query "properties.outputs.$1.value" --output tsv)
 }
 
 # The name of the resource group to be created. All resources will be place in
 # the resource group and start with name.
-rgName=$1
-rgName=${rgName:-apim-rg}
+# rgName=$1
+# rgName=${rgName:-apim-rg}
 
-# # The location to store the meta data for the deployment.
-location=$2
-location=${location:-francecentral}
+# # # The location to store the meta data for the deployment.
+# location=$2
+# location=${location:-francecentral}
 
 
 ##############################################
@@ -33,7 +34,8 @@ location=${location:-francecentral}
 ##############################################
 
 # # Deploy the infrastructure (APIM)
-az deployment sub create --name $rgName --location $location --template-file iac/main.bicep --parameters rgName=$rgName activate_aks='false' --output none
+echo 'Deploying APIM Infrastructure'
+az deployment sub create --name $AZ_RESOURCE_GROUP --location $AZ_LOCATION --template-file iac/main.bicep --parameters rgName=$AZ_RESOURCE_GROUP activate_aks='false' apim_name=$APIM_SERVICE_NAME --output none
 
 ### I.1 API Configuration ###
 az apim api import --path / \
@@ -95,7 +97,8 @@ curl -i -X PUT -d '{ "properties": { "provisioningState": "created" } }' \
 ################ AZURE AKS ###################
 ##############################################
 # # II.1 Deploy the infrastructure (AKS)
-az deployment sub create --name $rgName --location $location --template-file iac/main.bicep --parameters rgName=$rgName activate_apim='false' --output none
+echo 'Deploying AKS Infrastructure'
+az deployment sub create --name $AZ_RESOURCE_GROUP --location $AZ_LOCATION --template-file iac/main.bicep --parameters rgName=$AZ_RESOURCE_GROUP activate_apim='false' --output none
 
 # # II.2 Get Credential to connect to AKS cluster 
 az aks get-credentials --resource-group $AZ_RESOURCE_GROUP --name $(getOutput 'cluster_name')
@@ -116,7 +119,7 @@ kubectl apply -f k8s/binding.yaml
 # # II.6 Deploy your Application as Dapr Service
 kubectl apply -f k8s/echo-service.yaml
 kubectl apply -f k8s/event-subscriber.yaml
-kubectl get pods -l demo=dapr-apim -w
+kubectl get pods -l demo=dapr-apim 
 
 ########################################################
 ################ SELF HOSTED APIM GW ###################
