@@ -7,6 +7,6 @@
 # Requirements:
 # Azure CLI (log in)
 
-export AZ_RESOURCE_GROUP="apim_dapr"
+export AZ_RESOURCE_GROUP="apim-rg"
 
 az group delete --name $AZ_RESOURCE_GROUP

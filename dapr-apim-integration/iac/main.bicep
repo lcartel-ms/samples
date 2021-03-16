@@ -8,8 +8,6 @@ param aks_cluster_name string = 'myk8scluster'
 param activate_apim bool = true
 param activate_aks bool = true
 
-
-
 resource rg 'Microsoft.Resources/resourceGroups@2020-06-01' = {
   name: rgName
   location: location

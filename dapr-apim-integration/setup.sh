@@ -12,7 +12,7 @@
 ### VARIABLES ####
 export APIM_SERVICE_NAME="apim-service"
 export AZ_SUBSCRIPTION_ID="b05c9d81-b1b3-44f3-988e-1cc935f55075" ##TODO: Change hardcoded value
-export AZ_RESOURCE_GROUP="apim_dapr"
+export AZ_RESOURCE_GROUP="apim-rg"
 
 function getOutput {
    echo $(az deployment sub show --name $rgName --query "properties.outputs.$1.value" --output tsv)
@@ -21,7 +21,7 @@ function getOutput {
 # The name of the resource group to be created. All resources will be place in
 # the resource group and start with name.
 rgName=$1
-rgName=${rgName:-apim_dapr}
+rgName=${rgName:-apim-rg}
 
 # # The location to store the meta data for the deployment.
 location=$2
