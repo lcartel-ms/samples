@@ -2,7 +2,6 @@
  * Copyright (c) Microsoft Corporation.
  * Licensed under the MIT License.
  */
-
 package io.dapr.apps.twitter.processor;
 
 import java.io.BufferedOutputStream;
@@ -14,8 +13,6 @@ import java.util.Optional;
 import javax.net.ssl.HttpsURLConnection;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,20 +27,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.dapr.apps.twitter.processor.model.Sentiment;
 import io.dapr.apps.twitter.processor.model.Text;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 @RestController
-@Slf4j
-@RequiredArgsConstructor
 public class ApplicationController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ApplicationController.class);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
     private static final String PATH = "/text/analytics/v3.0/sentiment";
+
+    public ApplicationController(String endpoint, String subscriptionKey) {
+      this.endpoint = endpoint;
+      this.subscriptionKey = subscriptionKey;
+    }
 
     @Autowired
     @Qualifier("endpoint")
@@ -61,8 +61,8 @@ public class ApplicationController {
         assert(endpoint != null);
         assert(subscriptionKey != null);
 
-        URL url = new URL(endpoint+PATH);
-        HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+        var url = new URL(endpoint+PATH);
+        var connection = (HttpsURLConnection) url.openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "text/json");
         connection.setRequestProperty("Ocp-Apim-Subscription-Key", subscriptionKey);
@@ -70,8 +70,8 @@ public class ApplicationController {
 
         writeRequest(text, connection.getOutputStream());
 
-        JsonNode node = OBJECT_MAPPER.readTree(connection.getInputStream());
-        String sentiment = Optional.ofNullable(node)
+        var node = OBJECT_MAPPER.readTree(connection.getInputStream());
+        var sentiment = Optional.ofNullable(node)
           .map(n -> n.get("documents"))
           .map(n -> n.get(0))
           .map(n -> n.get("sentiment"))
@@ -84,12 +84,13 @@ public class ApplicationController {
           .map(n -> n.get(sentiment))
           .map(n -> n.floatValue())
           .orElse((float) 0);
+          
         return new Sentiment(sentiment, score);
     }
 
     private static void writeRequest(Text text, OutputStream output) throws IOException {
-        try (OutputStream bos = new BufferedOutputStream(output)) {
-            try (JsonGenerator generator = JSON_FACTORY.createGenerator(bos)) {
+        try (var bos = new BufferedOutputStream(output)) {
+            try (var generator = JSON_FACTORY.createGenerator(bos)) {
                 generator.writeStartObject();
                 generator.writeArrayFieldStart("documents");
                 generator.writeStartObject();
